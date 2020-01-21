@@ -16,7 +16,10 @@ from datetime import datetime
 
 import pandas as pd
 from pymemcache.client.hash import HashClient
+from google.oauth2 import service_account
+import pandas_gbq
 
+credentials = service_account.Credentials.from_service_account_file('/home/alpha/Desktop/john/bigquery-bokeh-dashboard/dashboard/service-account-key.json',)
 
 class MemcachedDiscovery:
 
@@ -64,10 +67,10 @@ class MemcachedDiscovery:
 
 
 def _run(query, dialect='legacy'):
-    return pd.read_gbq(
+    return pandas_gbq.read_gbq(
         query,
-        project_id=os.environ['GOOGLE_PROJECT_ID'],
-        private_key=os.environ['GOOGLE_APPLICATION_CREDENTIALS'],
+        project_id='hydroponics-265005',
+        credentials=credentials,
         dialect=dialect
     )
 

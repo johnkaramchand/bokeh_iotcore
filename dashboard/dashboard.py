@@ -27,7 +27,7 @@ from states import NAMES
 # Hide some noisy warnings
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 
-modules = [modules.air.Module(), modules.temperature.Module(), modules.population.Module(), modules.precipitation.Module()]
+modules = [modules.air.Module()]
 
 
 # [START fetch_data]
@@ -89,8 +89,8 @@ curdoc().add_root(
     column(
         row(state_select, timer),
         row(
-            column(blocks['modules.air'], blocks['modules.temperature']),
-            column(blocks['modules.precipitation'], blocks['modules.population']),
+            column(blocks['modules.air']),
+
         )
     )
 )

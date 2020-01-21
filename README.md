@@ -6,3 +6,4 @@ Contents of this repository:
 
 * `dashboard`: Python code to generate the dashboard using the Bokeh library. This folder also contains a `Dockerfile` in case you wish to build the container.
 * `kubernetes`: Configuration files to deploy the application using [Kubernetes](https://kubernetes.io/).
+# bokeh_iotcore

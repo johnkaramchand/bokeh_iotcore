@@ -62,6 +62,7 @@ class Module(BaseModule):
 
     def make_plot(self, dataframe):
         self.source = ColumnDataSource(data=dataframe)
+        print("kaka - ",dataframe) 
         self.title = Paragraph(text=TITLE)
         self.data_table = DataTable(source=self.source, width=390, height=275, columns=[
             TableColumn(field="zipcode", title="Zipcodes", width=100),

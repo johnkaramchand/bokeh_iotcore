@@ -18,41 +18,16 @@ from bokeh.layouts import column
 from modules.base import BaseModule
 from utils import run_query
 from states import NAMES_TO_CODES
+from bokeh.models.widgets import DataTable, TableColumn, NumberFormatter, Paragraph
 
 
 QUERY = """
-    SELECT
-      pm10.year AS year,
-      pm10.avg AS pm10,
-      pm25_frm.avg AS pm25_frm,
-      pm25_nonfrm.avg AS pm25_nonfrm,
-      lead.avg AS lead
-    FROM
-      ( SELECT avg(arithmetic_mean) as avg, YEAR(date_local) as year
-        FROM [bigquery-public-data:epa_historical_air_quality.pm10_daily_summary]
-        WHERE state_name = '%(state)s'
-        GROUP BY year
-      ) AS pm10
-    JOIN
-      ( SELECT avg(arithmetic_mean) as avg, YEAR(date_local) as year
-        FROM [bigquery-public-data:epa_historical_air_quality.pm25_frm_daily_summary]
-        WHERE state_name = '%(state)s'
-        GROUP BY year
-      ) AS pm25_frm ON pm10.year = pm25_frm.year
-    JOIN
-      ( SELECT avg(arithmetic_mean) as avg, YEAR(date_local) as year
-        FROM [bigquery-public-data:epa_historical_air_quality.pm25_nonfrm_daily_summary]
-        WHERE state_name = '%(state)s'
-        GROUP BY year
-      ) AS pm25_nonfrm ON pm10.year = pm25_nonfrm.year
-    JOIN
-      ( SELECT avg(arithmetic_mean) * 100 as avg, YEAR(date_local) as year
-        FROM [bigquery-public-data:epa_historical_air_quality.lead_daily_summary]
-        WHERE state_name = "%(state)s"
-        GROUP BY year
-      ) AS lead ON pm10.year = lead.year
-    ORDER BY
-      year
+    SELECT 
+      temp as temp,
+      slno as slno
+    FROM 
+      [hydroponics-265005:my_dataset.temperature] 
+    LIMIT 5
 """
 
 TITLE = 'Evolution of air pollutant levels:'
@@ -68,34 +43,19 @@ class Module(BaseModule):
 
     def fetch_data(self, state):
         return run_query(
-            QUERY % {'state': state},
+            QUERY ,
             cache_key=('air-%s' % NAMES_TO_CODES[state]))
 
 # [START make_plot]
     def make_plot(self, dataframe):
         self.source = ColumnDataSource(data=dataframe)
-        palette = all_palettes['Set2'][6]
-        hover_tool = HoverTool(tooltips=[
-            ("Value", "$y"),
-            ("Year", "@year"),
-        ])
-        self.plot = figure(
-            plot_width=600, plot_height=300, tools=[hover_tool],
-            toolbar_location=None)
-        columns = {
-            'pm10': 'PM10 Mass (µg/m³)',
-            'pm25_frm': 'PM2.5 FRM (µg/m³)',
-            'pm25_nonfrm': 'PM2.5 non FRM (µg/m³)',
-            'lead': 'Lead (¹/₁₀₀ µg/m³)',
-        }
-        for i, (code, label) in enumerate(columns.items()):
-            self.plot.line(
-                x='year', y=code, source=self.source, line_width=3,
-                line_alpha=0.6, line_color=palette[i], legend=label)
-
+        print("kaka - ",dataframe) 
         self.title = Paragraph(text=TITLE)
-        return column(self.title, self.plot)
-# [END make_plot]
+        self.data_table = DataTable(source=self.source, width=390, height=275, columns=[
+            TableColumn(field="temp", title="Temp", width=100),
+            TableColumn(field="slno", title="SLNO", width=100)
+        ])
+        return column(self.title, self.data_table)# [END make_plot]
 
     def update_plot(self, dataframe):
         self.source.data.update(dataframe)
