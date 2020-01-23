@@ -23,6 +23,22 @@ import modules.temperature
 import modules.population
 import modules.precipitation
 from states import NAMES
+from bokeh.models.widgets import Button
+
+from google.cloud import iot_v1
+
+import logging
+import os
+import sys
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "C:/Users/Augusteen/Desktop/john/hydroponics-chennai.json"
+
+print(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
+
+
+client = iot_v1.DeviceManagerClient()
+
+name = client.device_path('hydroponics-265005', 'asia-east1', 'my-registry', 'my-device')
+
 
 # Hide some noisy warnings
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
@@ -72,10 +88,19 @@ def update(attrname, old, new):
         getattr(module, 'unbusy')()
 
 
+
+def buttonClicked():
+    response = client.modify_cloud_to_device_config(name, b"Hello Dina !!")
+    print(response)
+    print("Button Clicked !")
+
+
+
 state = 'California'
 state_select = Select(title='Select a state:', value=state, options=NAMES)
 state_select.on_change('value', update)
-
+button = Button(label="Foo", button_type="success")
+button.on_click(buttonClicked)
 timer = Paragraph()
 
 results = fetch_data(state)
@@ -87,7 +112,7 @@ for module in modules:
 
 curdoc().add_root(
     column(
-        row(state_select, timer),
+        row(state_select, timer, button),
         row(
             column(blocks['modules.air']),
 
