@@ -30,7 +30,7 @@ from google.cloud import iot_v1
 import logging
 import os
 import sys
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "C:/Users/Augusteen/Desktop/john/hydroponics-chennai.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service-account-key.json"
 
 print(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
 
