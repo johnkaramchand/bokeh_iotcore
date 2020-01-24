@@ -10,10 +10,11 @@
 # limitations under the License.
 
 
-from bokeh.models import ColumnDataSource, HoverTool, Paragraph
+from bokeh.models import ColumnDataSource, HoverTool, Paragraph, DataRange1d, Plot, LinearAxis, Grid
 from bokeh.plotting import figure
 from bokeh.palettes import all_palettes
 from bokeh.layouts import column
+from bokeh.models.glyphs import Line
 
 from modules.base import BaseModule
 from utils import run_query
@@ -23,14 +24,15 @@ from bokeh.models.widgets import DataTable, TableColumn, NumberFormatter, Paragr
 
 QUERY = """
     SELECT 
-      temp as temp,
-      slno as slno
+      timestamp as timestamp,
+      tempa as temperature
     FROM 
-      [hydroponics-265005:my_dataset.temperature] 
+      [hydroponics-265005:my_dataset.gas_values] 
     LIMIT 5
 """
 
-TITLE = 'Evolution of air pollutant levels:'
+TITLE = 'Evolution of Air Temperature levels:'
+
 
 
 class Module(BaseModule):
@@ -42,20 +44,27 @@ class Module(BaseModule):
         self.title = None
 
     def fetch_data(self, state):
-        return run_query(
+        dataframe = run_query(
             QUERY ,
             cache_key=('air-%s' % NAMES_TO_CODES[state]))
+        dataframe['date_readable'] = dataframe['timestamp'].apply(lambda x: x.strftime("%H-%M-%S"))
+        return dataframe
+
 
 # [START make_plot]
     def make_plot(self, dataframe):
         self.source = ColumnDataSource(data=dataframe)
-        print("kaka - ",dataframe) 
+        self.plot = Plot(title=None, plot_width=300, plot_height=300,min_border=0, toolbar_location=None)
+        glyph = Line(x="timestamp", y="temperature", line_color="#f46d43", line_width=6, line_alpha=0.6)
+        self.plot.add_glyph(self.source, glyph)
+        xaxis = LinearAxis()
+        self.plot.add_layout(xaxis, 'below')
+        yaxis = LinearAxis()
+        self.plot.add_layout(yaxis, 'left')
         self.title = Paragraph(text=TITLE)
-        self.data_table = DataTable(source=self.source, width=390, height=275, columns=[
-            TableColumn(field="temp", title="Temp", width=100),
-            TableColumn(field="slno", title="SLNO", width=100)
-        ])
-        return column(self.title, self.data_table)# [END make_plot]
+        self.plot.add_layout(Grid(dimension=0, ticker=xaxis.ticker))
+        self.plot.add_layout(Grid(dimension=1, ticker=yaxis.ticker)) 
+        return column(self.title, self.plot)
 
     def update_plot(self, dataframe):
         self.source.data.update(dataframe)

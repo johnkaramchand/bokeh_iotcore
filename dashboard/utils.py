@@ -19,7 +19,10 @@ from pymemcache.client.hash import HashClient
 from google.oauth2 import service_account
 import pandas_gbq
 
-credentials = service_account.Credentials.from_service_account_file('/home/alpha/Desktop/john/bigquery-bokeh-dashboard/dashboard/service-account-key.json',)
+#os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "C:/Users/Augusteen/Desktop/john/hydroponics-chennai.json"
+
+#credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+credentials = service_account.Credentials.from_service_account_file('service-account-key.json',)
 
 class MemcachedDiscovery:
 
