@@ -10,38 +10,32 @@
 # limitations under the License.
 
 
-import numpy as np
-from bokeh.models import ColumnDataSource
-from bokeh.models.widgets import DataTable, TableColumn, NumberFormatter, Paragraph
-from bokeh.layouts import column
 
 from modules.base import BaseModule
 from utils import run_query
 from states import NAMES_TO_CODES
+from bokeh.layouts import column, row
+
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+import warnings
+warnings.filterwarnings('ignore')
+from bokeh.plotting import figure, show, output_file, output_notebook
+from bokeh.palettes import Spectral11, colorblind, Inferno, BuGn, brewer
+from bokeh.models import HoverTool, value, LabelSet, Legend, ColumnDataSource,LinearColorMapper,BasicTicker, PrintfTickFormatter, ColorBar, Paragraph
+import datetime
 
 
 QUERY = """
-    SELECT
-      A.zipcode,
-      population,
-      city,
-      state_code
-    FROM
-      `bigquery-public-data.census_bureau_usa.population_by_zip_2010` AS A
-    JOIN
-      `bigquery-public-data.utility_us.zipcode_area` AS B
-    ON
-      A.zipcode = B.zipcode
-    WHERE
-      gender = ''
-      AND state_code = '%(state)s'
-    ORDER BY
-      population DESC
-    LIMIT
-      100
+    SELECT 
+      *
+    FROM 
+      [hydroponics-265005:my_dataset.gas_values] 
+    LIMIT 5
 """
 
-TITLE = "Top 100 most populated zipcodes:"
+YEAR = 2019
+TITLE = "Gas Values (C) in %s:" % YEAR
 
 
 class Module(BaseModule):
@@ -49,33 +43,39 @@ class Module(BaseModule):
     def __init__(self):
         super().__init__()
         self.source = None
-        self.data_table = None
+        self.plot = None
         self.title = None
 
     def fetch_data(self, state):
         dataframe = run_query(
-            QUERY % {'state': NAMES_TO_CODES[state]},
-            cache_key=('population-%s' % NAMES_TO_CODES[state]),
-            dialect='standard')
-        dataframe.index = np.arange(1, len(dataframe) + 1)
+            QUERY ,
+            cache_key=('air-%s' % NAMES_TO_CODES[state]))
+        dataframe['timestamp'] = pd.to_datetime(dataframe['timestamp'])
+        dataframe['day'] = dataframe.timestamp.apply(lambda x: x.day)
+        dataframe['minutes'] = dataframe.timestamp.apply(lambda x: x.minute)
+        dataframe['hour'] = dataframe.timestamp.apply(lambda x: x.hour)
         return dataframe
 
     def make_plot(self, dataframe):
-        self.source = ColumnDataSource(data=dataframe)
-        print("kaka - ",dataframe) 
+        temp_df = dataframe.groupby(['hour']).mean().reset_index()
+        TOOLS = 'save,pan,box_zoom,reset,wheel_zoom,hover'
+        self.plot = figure(title="Gas variations wrt hours", y_axis_type="linear", plot_height = 400,
+                  tools = TOOLS, plot_width = 800)
+        self.plot.xaxis.axis_label = 'Hour of day'
+        self.plot.yaxis.axis_label = 'ppm'
+        self.plot.line(temp_df.hour, temp_df.co,line_color="purple", line_width = 3, name="CO")
+        self.plot.line(temp_df.hour, temp_df.co2,line_color="blue", line_width = 3, name="CO2")
+        self.plot.line(temp_df.hour, temp_df.h2,line_color="green", line_width = 3, name="H2")          
         self.title = Paragraph(text=TITLE)
-        self.data_table = DataTable(source=self.source, width=390, height=275, columns=[
-            TableColumn(field="zipcode", title="Zipcodes", width=100),
-            TableColumn(field="population", title="Population", width=100, formatter=NumberFormatter(format="0,0")),
-            TableColumn(field="city", title="City")
-        ])
-        return column(self.title, self.data_table)
+        return column(self.title, self.plot)
 
     def update_plot(self, dataframe):
         self.source.data.update(dataframe)
 
     def busy(self):
         self.title.text = 'Updating...'
+        self.plot.background_fill_color = "#efefef"
 
     def unbusy(self):
         self.title.text = TITLE
+        self.plot.background_fill_color = "white"

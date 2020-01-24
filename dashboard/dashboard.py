@@ -24,18 +24,20 @@ import modules.population
 import modules.precipitation
 from states import NAMES
 from bokeh.models.widgets import Button
+from google.oauth2 import service_account
 
 from google.cloud import iot_v1
 
 import logging
 import os
 import sys
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service-account-key.json"
+#os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service-account-key.json"
 
-print(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
+#print(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
 
+credentials = service_account.Credentials.from_service_account_file('service-account-key.json',)
 
-client = iot_v1.DeviceManagerClient()
+client = iot_v1.DeviceManagerClient(credentials=credentials)
 
 name = client.device_path('hydroponics-265005', 'asia-east1', 'my-registry', 'my-device')
 
@@ -43,8 +45,9 @@ name = client.device_path('hydroponics-265005', 'asia-east1', 'my-registry', 'my
 # Hide some noisy warnings
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 
-modules = [modules.air.Module()]
+modules = [modules.air.Module(),modules.temperature.Module(),modules.population.Module(),modules.precipitation.Module()]
 
+state = 'California'
 
 # [START fetch_data]
 def fetch_data(state):
@@ -96,10 +99,8 @@ def buttonClicked():
 
 
 
-state = 'California'
-state_select = Select(title='Select a state:', value=state, options=NAMES)
-state_select.on_change('value', update)
-button = Button(label="Foo", button_type="success")
+
+button = Button(label="Douse nutrients", button_type="success")
 button.on_click(buttonClicked)
 timer = Paragraph()
 
@@ -112,11 +113,11 @@ for module in modules:
 
 curdoc().add_root(
     column(
-        row(state_select, timer, button),
+        row(timer, button),
         row(
-            column(blocks['modules.air']),
-
-        )
+            column(blocks['modules.air'],blocks['modules.temperature']),
+        ),
+        row(column(blocks['modules.population'],blocks['modules.precipitation']))
     )
 )
-curdoc().title = "Dashboard Demo"
+curdoc().title = "Groot Dashboard"

@@ -10,44 +10,32 @@
 # limitations under the License.
 
 
-import pandas as pd
-
-from bokeh.models import ColumnDataSource, HoverTool, Paragraph, DataRange1d
-from bokeh.plotting import figure
-from bokeh.layouts import column
 
 from modules.base import BaseModule
 from utils import run_query
 from states import NAMES_TO_CODES
+from bokeh.layouts import column, row
+
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+import warnings
+warnings.filterwarnings('ignore')
+from bokeh.plotting import figure, show, output_file, output_notebook
+from bokeh.palettes import Spectral11, colorblind, Inferno, BuGn, brewer
+from bokeh.models import HoverTool, value, LabelSet, Legend, ColumnDataSource,LinearColorMapper,BasicTicker, PrintfTickFormatter, ColorBar, Paragraph
+import datetime
 
 
 QUERY = """
-    SELECT
-      YEAR(date) as year,
-      MONTH(date) as month,
-      DAY(date) as day,
-      AVG(prcp) AS prcp
-    FROM (
-      SELECT
-        STRING(date) AS date,
-        IF (element = 'PRCP', value/10, NULL) AS prcp
-      FROM
-        [bigquery-public-data:ghcn_d.ghcnd_%(year)s] AS weather
-      JOIN
-        [bigquery-public-data:ghcn_d.ghcnd_stations] as stations
-      ON
-        weather.id = stations.id
-      WHERE
-        stations.state = '%(state)s'
-    )
-    GROUP BY
-      year, month, day
-    ORDER BY
-      year, month, day
+    SELECT 
+      *
+    FROM 
+      [hydroponics-265005:my_dataset.gas_values] 
+    LIMIT 5
 """
 
-YEAR = 2016
-TITLE = 'Precipitation (mm) in %s:' % YEAR
+YEAR = 2019
+TITLE = "Gas Values (C) in %s:" % YEAR
 
 
 class Module(BaseModule):
@@ -60,32 +48,23 @@ class Module(BaseModule):
 
     def fetch_data(self, state):
         dataframe = run_query(
-            QUERY % {'state': NAMES_TO_CODES[state], 'year': YEAR},
-            cache_key=('precipitation-%s' % NAMES_TO_CODES[state]))
-        dataframe['date'] = pd.to_datetime(dataframe[['year', 'month', 'day']])
-        dataframe['date_readable'] = dataframe['date'].apply(lambda x: x.strftime("%Y-%m-%d"))
+            QUERY ,
+            cache_key=('air-%s' % NAMES_TO_CODES[state]))
+        dataframe['timestamp'] = pd.to_datetime(dataframe['timestamp'])
+        dataframe['day'] = dataframe.timestamp.apply(lambda x: x.day)
+        dataframe['minutes'] = dataframe.timestamp.apply(lambda x: x.minute)
+        dataframe['hour'] = dataframe.timestamp.apply(lambda x: x.hour)
         return dataframe
 
     def make_plot(self, dataframe):
-        self.source = ColumnDataSource(data=dataframe)
-        self.plot = figure(
-            x_axis_type="datetime", plot_width=400, plot_height=300,
-            tools='', toolbar_location=None)
-
-        vbar = self.plot.vbar(
-            x='date', top='prcp', width=1, color='#fdae61', source=self.source)
-        hover_tool = HoverTool(tooltips=[
-            ('Value', '$y'),
-            ('Date', '@date_readable'),
-        ], renderers=[vbar])
-        self.plot.tools.append(hover_tool)
-
-        self.plot.xaxis.axis_label = None
-        self.plot.yaxis.axis_label = None
-        self.plot.axis.axis_label_text_font_style = 'bold'
-        self.plot.x_range = DataRange1d(range_padding=0.0)
-        self.plot.grid.grid_line_alpha = 0.3
-
+        temp_df = dataframe.groupby(['hour']).mean().reset_index()
+        TOOLS = 'save,pan,box_zoom,reset,wheel_zoom,hover'
+        self.plot = figure(title="Gas variations wrt hours", y_axis_type="linear", plot_height = 400,
+                  tools = TOOLS, plot_width = 800)
+        self.plot.xaxis.axis_label = 'Hour of day'
+        self.plot.yaxis.axis_label = 'ppm'
+        self.plot.line(temp_df.hour, temp_df.tempa,line_color="yellow", line_width = 3,name="Temperature")
+        self.plot.line(temp_df.hour, temp_df.humiditya,line_color="red", line_width = 3,name="Humidity")
         self.title = Paragraph(text=TITLE)
         return column(self.title, self.plot)
 
